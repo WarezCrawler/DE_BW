@@ -146,6 +146,8 @@ CLASS lcl_transform IMPLEMENTATION.
           L_S_ZDECSPRCT TYPE /BIC/PZDECSPRCT,
           L_T_ZCOMP_COD TYPE STANDARD TABLE OF /BIC/PZCOMP_COD,
           L_S_ZCOMP_COD TYPE /BIC/PZCOMP_COD,
+          L_T_ZC_COMP TYPE STANDARD TABLE OF /BIC/PZC_COMP,
+          L_S_ZC_COMP TYPE /BIC/PZC_COMP,
           L_T_ZZSEGMENT TYPE STANDARD TABLE OF /BIC/PZZSEGMENT,
           L_S_ZZSEGMENT TYPE /BIC/PZZSEGMENT,
           L_T_ZC_MAPPC TYPE STANDARD TABLE OF /BIC/PZC_MAPPC,
@@ -166,6 +168,8 @@ CLASS lcl_transform IMPLEMENTATION.
 
     SELECT * FROM /BIC/PZCOMP_COD INTO TABLE L_T_ZCOMP_COD
       WHERE OBJVERS = 'A' AND SOURSYSTEM = '02'.
+
+    SELECT * FROM /BIC/PZC_COMP INTO TABLE L_T_ZC_COMP.
 
     SELECT * FROM /BIC/PZC_MAPPC INTO TABLE L_T_ZC_MAPPC
       WHERE OBJVERS = 'A'.
@@ -198,6 +202,11 @@ CLASS lcl_transform IMPLEMENTATION.
              l_s_zc_segm, l_s_zcomp_cod, ld_org, l_s_zc_mappc,
              l_s_zzsegment, l_s_dcs_comp.
 
+*Read company code master data once
+        READ TABLE  l_t_zcomp_cod INTO l_s_zcomp_cod
+          WITH KEY /bic/zcomp_cod = <RESULT_FIELDS>-/bic/zcomp_cod
+                   SOURSYSTEM = <RESULT_FIELDS>-SOURSYSTEM.
+
 **-----------------------------------------------------------
 ** Source system = 04
 ** Source system = 09
@@ -217,9 +226,8 @@ CLASS lcl_transform IMPLEMENTATION.
           ENDIF.
         ELSE.
 *From  Company
-          READ TABLE  l_t_dcs_comp INTO l_s_dcs_comp
-            WITH KEY zcomp_cod = <RESULT_FIELDS>-/bic/zcomp_cod
-                     soursystem = <RESULT_FIELDS>-SOURSYSTEM.
+          READ TABLE  l_t_zc_comp INTO l_s_zc_comp
+            WITH KEY /bic/zc_comp = l_s_zcomp_cod-/bic/zgcompany.
 
           IF SY-SUBRC = 0.
 *reading Segment from DCS legal company ZC_COMP
@@ -276,21 +284,27 @@ CLASS lcl_transform IMPLEMENTATION.
 **-----------------------------------------------------------
 
       IF <RESULT_FIELDS>-SOURSYSTEM = '02'.
-
 *derive ZDECSPRCT for DECS.
 
 * Start derive segment - 1. part
         IF <RESULT_FIELDS>-/bic/zsegment IS NOT INITIAL.
            <RESULT_FIELDS>-/bic/zc_segm =
            <RESULT_FIELDS>-/bic/zsegment.
-            READ TABLE l_t_zc_segm INTO l_s_zc_segm
-                WITH KEY /bic/zc_segm = <RESULT_FIELDS>-/bic/zc_segm.
-*end****derive segment
-        ENDIF.
 
-*Read company code master data once
-        READ TABLE  l_t_zcomp_cod INTO l_s_zcomp_cod
-          WITH KEY /bic/zcomp_cod = <RESULT_FIELDS>-/bic/zcomp_cod.
+*end****derive segment
+        ELSE.
+* Segment is empty - read from Company Code master data
+          READ TABLE  l_t_zc_comp INTO l_s_zc_comp
+            WITH KEY /bic/zc_comp = l_s_zcomp_cod-/bic/zgcompany.
+
+          IF SY-SUBRC = 0.
+*reading Segment from DCS legal company ZC_COMP
+            <RESULT_FIELDS>-/bic/zc_segm = l_s_zc_comp-/bic/zc_segm.
+          ENDIF.
+        ENDIF.
+* We have segment then get master data
+        READ TABLE l_t_zc_segm INTO l_s_zc_segm
+            WITH KEY /bic/zc_segm = <RESULT_FIELDS>-/bic/zc_segm.
 
 * Profit center is not empty
         IF <RESULT_FIELDS>-/bic/zprofit_c IS NOT INITIAL.
@@ -311,7 +325,8 @@ CLASS lcl_transform IMPLEMENTATION.
           IF SY-SUBRC = 0.
 *Start derive segment 2. part
 *Derive segment from Profit Center if empty from source
-            IF <RESULT_FIELDS>-/bic/zc_segm  IS INITIAL.
+*This will overwrite segment from Company Code found earlier
+            IF <RESULT_FIELDS>-/bic/zsegment  IS INITIAL.
                <RESULT_FIELDS>-/bic/zc_segm =
                l_s_zdecsprct-/bic/zc_segm.
             ENDIF.
@@ -327,38 +342,24 @@ CLASS lcl_transform IMPLEMENTATION.
             ENDIF.
           ENDIF.
 *     Empty profit center
-        ELSE.
+        ELSEIF l_s_zc_segm-/bic/zc_bunit = '02'.
 *  If Business Unit = DCS based on ZC_SEGM.
-          IF l_s_zc_segm-/bic/zc_bunit = '02'.
 *If YES then. Find first profit center in Company which is a company
 *representative based on the type property
-            IF l_s_zcomp_cod-/bic/zgcompany IS NOT INITIAL.
-              READ TABLE l_t_zdecsprct INTO l_s_zdecsprct
-                 WITH KEY /bic/zgcompany =
-                 l_s_zcomp_cod-/bic/zgcompany
-                 /bic/zprcatgy = '29'.
-              IF SY-SUBRC = 0.
-                 <RESULT_FIELDS>-/bic/zdecsprct =
-                   l_s_zdecsprct-/bic/zdecsprct.
-              ENDIF.
-            ENDIF.
-          ELSE.
-* Non DCS - use logical profit center created in
-* ZDECSPRCT -> ZDECSPRCT transformation
-            lv_non_dcs_ORG = 1.
-* Segment and PrCrt is empty - read from  Company
-            IF <RESULT_FIELDS>-/bic/zsegment IS INITIAL.
-BREAK-POINT.
-              READ TABLE  l_t_dcs_comp INTO l_s_dcs_comp
-                WITH KEY zcomp_cod = <RESULT_FIELDS>-/bic/zcomp_cod
-                         soursystem = <RESULT_FIELDS>-SOURSYSTEM.
-
-              IF SY-SUBRC = 0.
-*    reading Segment from DCS legal company ZC_COMP
-                <RESULT_FIELDS>-/bic/zc_segm = l_s_dcs_comp-zc_segm.
-              ENDIF.
+          IF l_s_zcomp_cod-/bic/zgcompany IS NOT INITIAL.
+            READ TABLE l_t_zdecsprct INTO l_s_zdecsprct
+               WITH KEY /bic/zgcompany =
+               l_s_zcomp_cod-/bic/zgcompany
+               /bic/zprcatgy = '29'.
+            IF SY-SUBRC = 0.
+               <RESULT_FIELDS>-/bic/zdecsprct =
+                 l_s_zdecsprct-/bic/zdecsprct.
             ENDIF.
           ENDIF.
+        ELSE.
+*Non DCS - use logical profit center created in
+*ZDECSPRCT -> ZDECSPRCT transformation
+          lv_non_dcs_ORG = 1.
         ENDIF.
       ENDIF.
 
@@ -387,8 +388,7 @@ BREAK-POINT.
 
 **-----------------------------------------------------------
 
-* No validity check for non DCS entities
-      IF lv_non_dcs_ORG IS INITIAL.
+     IF <RESULT_FIELDS>-/BIC/ZDECSPRCT IS NOT INITIAL.
 *Integrity Check for ZDECSPRCT
         LV_PC_CHECK1 = <RESULT_FIELDS>-/BIC/ZDECSPRCT.
         CALL FUNCTION 'RSAR_VALUE_INTEGRITY_INFOOBJ'
@@ -400,33 +400,32 @@ BREAK-POINT.
           VALUE_NOT_VALID          = 1
           OTHERS                   = 2.
 
-        IF SY-SUBRC <> 0.
-*     Implement suitable error handling here
-          CLEAR <RESULT_FIELDS>-/BIC/ZDECSPRCT.
-        ENDIF.
-      ENDIF.
+        IF SY-SUBRC = 0.
 * Lookup DCS Profit Center (ZC_ORG) from attribute value on ZDECSPRCT
-      IF <RESULT_FIELDS>-/bic/zdecsprct IS NOT INITIAL.
-        l_chavl = <RESULT_FIELDS>-/bic/zdecsprct.
-        CALL FUNCTION 'RSAU_READ_MASTER_DATA'
-          EXPORTING
-            i_iobjnm                = 'ZDECSPRCT'
-            i_chavl                 = l_chavl
-            i_attrnm                = 'ZC_ORG'
-          IMPORTING
-            e_attrval               = l_zc_org
-          EXCEPTIONS
-            read_error              = 1
-            no_such_attribute       = 2
-            wrong_import_parameters = 3
-            chavl_not_found         = 4
-            OTHERS                  = 5.
-        IF sy-subrc <> 0.
-          MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
-            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
-          EXIT.
-        ELSE.
-          <RESULT_FIELDS>-/bic/zc_org = l_zc_org.
+          IF <RESULT_FIELDS>-/bic/zdecsprct IS NOT INITIAL.
+            l_chavl = <RESULT_FIELDS>-/bic/zdecsprct.
+            CALL FUNCTION 'RSAU_READ_MASTER_DATA'
+              EXPORTING
+                i_iobjnm                = 'ZDECSPRCT'
+                i_chavl                 = l_chavl
+                i_attrnm                = 'ZC_ORG'
+              IMPORTING
+                e_attrval               = l_zc_org
+              EXCEPTIONS
+                read_error              = 1
+                no_such_attribute       = 2
+                wrong_import_parameters = 3
+                chavl_not_found         = 4
+                OTHERS                  = 5.
+            IF sy-subrc <> 0.
+              MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+              EXIT.
+            ELSE.
+              <RESULT_FIELDS>-/bic/zc_org = l_zc_org.
+            ENDIF.
+          ENDIF.
+
         ENDIF.
       ENDIF.
     ENDLOOP.
