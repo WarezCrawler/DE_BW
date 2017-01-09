@@ -158,9 +158,7 @@ CLASS lcl_transform IMPLEMENTATION.
           l_s_zc_segm TYPE /bic/pzc_segm,
           lv_non_dcs_ORG TYPE i,
           l_zc_org TYPE rsd_chavl,
-          l_chavl TYPE rsd_chavl,
-          l_t_dcs_comp TYPE TABLE OF t_dcs_comp,
-          l_s_dcs_comp TYPE t_dcs_comp.
+          l_chavl TYPE rsd_chavl.
 
 
     SELECT * FROM /BIC/PZDECSPRCT INTO TABLE L_T_ZDECSPRCT
@@ -183,29 +181,16 @@ CLASS lcl_transform IMPLEMENTATION.
     SELECT * FROM /BIC/PZC_SEGM INTO TABLE L_T_ZC_SEGM
       WHERE OBJVERS = 'A'.
 
-    SELECT A~/bic/zcomp_cod A~SOURSYSTEM
-           A~/bic/zgcompany B~/bic/zc_segm
-      INTO TABLE l_t_dcs_comp
-      FROM /bic/pzcomp_cod AS A
-        INNER JOIN /bic/pzc_comp AS B ON
-         B~/bic/zc_comp = A~/bic/zgcompany
-      FOR ALL ENTRIES IN RESULT_PACKAGE
-            WHERE A~SOURSYSTEM = RESULT_PACKAGE-SOURSYSTEM AND
-                  A~/bic/zcomp_cod = RESULT_PACKAGE-/bic/zcomp_cod AND
-                  B~/bic/zc_bunit = '02'.
-
-    SORT l_t_dcs_comp BY zcomp_cod soursystem.
-
     LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
 
       CLEAR: lv_non_dcs_org, l_s_zdecsprct, lv_zdecsprct, lv_comp,
              l_s_zc_segm, l_s_zcomp_cod, ld_org, l_s_zc_mappc,
-             l_s_zzsegment, l_s_dcs_comp.
+             l_s_zzsegment.
 
 *Read company code master data once
-        READ TABLE  l_t_zcomp_cod INTO l_s_zcomp_cod
-          WITH KEY /bic/zcomp_cod = <RESULT_FIELDS>-/bic/zcomp_cod
-                   SOURSYSTEM = <RESULT_FIELDS>-SOURSYSTEM.
+      READ TABLE  l_t_zcomp_cod INTO l_s_zcomp_cod
+        WITH KEY /bic/zcomp_cod = <RESULT_FIELDS>-/bic/zcomp_cod
+                 SOURSYSTEM = <RESULT_FIELDS>-SOURSYSTEM.
 
 **-----------------------------------------------------------
 ** Source system = 04
@@ -231,7 +216,7 @@ CLASS lcl_transform IMPLEMENTATION.
 
           IF SY-SUBRC = 0.
 *reading Segment from DCS legal company ZC_COMP
-            <RESULT_FIELDS>-/bic/zc_segm = l_s_dcs_comp-zc_segm.
+            <RESULT_FIELDS>-/bic/zc_segm = l_s_zc_comp-/bic/zc_segm.
           ENDIF.
 *end****derive segment
         ENDIF.
@@ -291,7 +276,6 @@ CLASS lcl_transform IMPLEMENTATION.
            <RESULT_FIELDS>-/bic/zc_segm =
            <RESULT_FIELDS>-/bic/zsegment.
 
-*end****derive segment
         ELSE.
 * Segment is empty - read from Company Code master data
           READ TABLE  l_t_zc_comp INTO l_s_zc_comp
@@ -302,9 +286,13 @@ CLASS lcl_transform IMPLEMENTATION.
             <RESULT_FIELDS>-/bic/zc_segm = l_s_zc_comp-/bic/zc_segm.
           ENDIF.
         ENDIF.
+*end****derive segment
+
+        IF <RESULT_FIELDS>-/bic/zc_segm IS NOT INITIAL.
 * We have segment then get master data
-        READ TABLE l_t_zc_segm INTO l_s_zc_segm
-            WITH KEY /bic/zc_segm = <RESULT_FIELDS>-/bic/zc_segm.
+          READ TABLE l_t_zc_segm INTO l_s_zc_segm
+              WITH KEY /bic/zc_segm = <RESULT_FIELDS>-/bic/zc_segm.
+        ENDIF.
 
 * Profit center is not empty
         IF <RESULT_FIELDS>-/bic/zprofit_c IS NOT INITIAL.
@@ -320,8 +308,7 @@ CLASS lcl_transform IMPLEMENTATION.
              WITH KEY /bic/zdecsprct = <RESULT_FIELDS>-/bic/zdecsprct.
 
 * Profit Center for '02' should always be available in ZDECSPRCT
-* If not then it is a new profit center, which has not been loaded from
-* DECS master data yet.
+* If not then it is a new profit center, or IP mismatch
           IF SY-SUBRC = 0.
 *Start derive segment 2. part
 *Derive segment from Profit Center if empty from source
@@ -343,7 +330,7 @@ CLASS lcl_transform IMPLEMENTATION.
           ENDIF.
 *     Empty profit center
         ELSEIF l_s_zc_segm-/bic/zc_bunit = '02'.
-*  If Business Unit = DCS based on ZC_SEGM.
+*If Business Unit = DCS based on ZC_SEGM.
 *If YES then. Find first profit center in Company which is a company
 *representative based on the type property
           IF l_s_zcomp_cod-/bic/zgcompany IS NOT INITIAL.
