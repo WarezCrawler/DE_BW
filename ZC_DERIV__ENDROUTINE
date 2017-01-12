@@ -385,7 +385,7 @@ CLASS lcl_transform IMPLEMENTATION.
 **-----------------------------------------------------------
 
      IF <RESULT_FIELDS>-/bic/zdecsprct IS NOT INITIAL AND
-       lv_non_dcs_org > 0.
+       lv_non_dcs_org = 0.
 *Integrity Check for ZDECSPRCT
         LV_PC_CHECK1 = <RESULT_FIELDS>-/BIC/ZDECSPRCT.
         CALL FUNCTION 'RSAR_VALUE_INTEGRITY_INFOOBJ'
