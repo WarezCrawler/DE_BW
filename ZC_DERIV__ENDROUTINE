@@ -234,7 +234,7 @@ CLASS lcl_transform IMPLEMENTATION.
             IF l_s_zc_mappc-/bic/zc_bool IS INITIAL.
               <RESULT_FIELDS>-/bic/zdecsprct = l_s_zc_mappc-/bic/zc_org.
             ELSE.
-              lv_non_dcs_ORG = 1.
+              lv_non_dcs_ORG = 2.
             ENDIF.
           ENDIF.
 *  If Business Unit = DCS based on ZC_SEGM.
@@ -252,7 +252,7 @@ CLASS lcl_transform IMPLEMENTATION.
               ENDIF.
             ENDIF.
          ELSE.
-          lv_non_dcs_ORG = 1.
+          lv_non_dcs_ORG = 2.
         ENDIF.
       ENDIF.
 **END*Mapping DCS Profit Centres from DECS Profit Centres
@@ -322,14 +322,14 @@ CLASS lcl_transform IMPLEMENTATION.
 *****XLIND: REMOVED - DECS PrCtr and therefore in MD with ZC_ORG
 *****Generated during MD load ZDECSPRCTR->ZDECSPRCTR
 
-**Is it a DCS profit center?
-*            IF l_s_zdecsprct-/bic/zprcatgy IS INITIAL OR
-**If it is a DCS profit center is it also a DCS segment?
-*              l_s_zc_segm-/bic/zc_bunit IS INITIAL.
-** Non DCS - use logical profit center created in
-** ZDECSPRCT -> ZDECSPRCT transformation
-*               lv_non_dcs_ORG = 1.
-*            ENDIF.
+*Is it a DCS profit center?
+            IF l_s_zdecsprct-/bic/zprcatgy IS INITIAL OR
+*If it is a DCS profit center is it also a DCS segment?
+              l_s_zc_segm-/bic/zc_bunit <> '02'.
+* DECS PrCtr but non DCS PrCtr or non DCS segment
+* Create logical DCS PrCtr
+               lv_non_dcs_ORG = 1.
+            ENDIF.
           ENDIF.
 *     Empty profit center
         ELSEIF l_s_zc_segm-/bic/zc_bunit = '02'.
@@ -347,14 +347,14 @@ CLASS lcl_transform IMPLEMENTATION.
             ENDIF.
           ENDIF.
         ELSE.
-*Non DCS - use logical profit center created in
-*ZDECSPRCT -> ZDECSPRCT transformation
-          lv_non_dcs_ORG = 1.
+* Empty profit center with non DCS Segment
+* Create logical DECS and DCS PrCtr
+          lv_non_dcs_ORG = 2.
         ENDIF.
       ENDIF.
 
 * Non DCS - create logic profit
-      IF lv_non_dcs_org = 1.
+      IF lv_non_dcs_org > 0.
 *removing alpha
           CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
             EXPORTING
@@ -368,7 +368,13 @@ CLASS lcl_transform IMPLEMENTATION.
                CONCATENATE 'CC' lv_comp
                '_' <RESULT_FIELDS>-/bic/zc_segm INTO ld_org.
            ENDIF.
-           <RESULT_FIELDS>-/bic/zdecsprct = ld_org.
+        IF lv_non_dcs_org = 1.
+             <RESULT_FIELDS>-/bic/zc_org = ld_org.
+        ELSE.
+            <RESULT_FIELDS>-/bic/zc_org = ld_org.
+            <RESULT_FIELDS>-/bic/zdecsprct = ld_org.
+      ENDIF.
+
         ENDIF.
       ENDIF.
 
@@ -378,7 +384,8 @@ CLASS lcl_transform IMPLEMENTATION.
 
 **-----------------------------------------------------------
 
-     IF <RESULT_FIELDS>-/BIC/ZDECSPRCT IS NOT INITIAL.
+     IF <RESULT_FIELDS>-/bic/zdecsprct IS NOT INITIAL AND
+       lv_non_dcs_org > 0.
 *Integrity Check for ZDECSPRCT
         LV_PC_CHECK1 = <RESULT_FIELDS>-/BIC/ZDECSPRCT.
         CALL FUNCTION 'RSAR_VALUE_INTEGRITY_INFOOBJ'
@@ -392,30 +399,29 @@ CLASS lcl_transform IMPLEMENTATION.
 
         IF SY-SUBRC = 0.
 * Lookup DCS Profit Center (ZC_ORG) from attribute value on ZDECSPRCT
-          IF <RESULT_FIELDS>-/bic/zdecsprct IS NOT INITIAL.
-            l_chavl = <RESULT_FIELDS>-/bic/zdecsprct.
-            CALL FUNCTION 'RSAU_READ_MASTER_DATA'
-              EXPORTING
-                i_iobjnm                = 'ZDECSPRCT'
-                i_chavl                 = l_chavl
-                i_attrnm                = 'ZC_ORG'
-              IMPORTING
-                e_attrval               = l_zc_org
-              EXCEPTIONS
-                read_error              = 1
-                no_such_attribute       = 2
-                wrong_import_parameters = 3
-                chavl_not_found         = 4
-                OTHERS                  = 5.
-            IF sy-subrc <> 0.
-              MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
-                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
-              EXIT.
-            ELSE.
+          l_chavl = <RESULT_FIELDS>-/bic/zdecsprct.
+          CALL FUNCTION 'RSAU_READ_MASTER_DATA'
+            EXPORTING
+              i_iobjnm                = 'ZDECSPRCT'
+              i_chavl                 = l_chavl
+              i_attrnm                = 'ZC_ORG'
+            IMPORTING
+              e_attrval               = l_zc_org
+            EXCEPTIONS
+              read_error              = 1
+              no_such_attribute       = 2
+              wrong_import_parameters = 3
+              chavl_not_found         = 4
+              OTHERS                  = 5.
+          IF sy-subrc <> 0.
+            MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+            EXIT.
+          ELSE.
+            IF lv_non_dcs_org <> 2.
               <RESULT_FIELDS>-/bic/zc_org = l_zc_org.
             ENDIF.
           ENDIF.
-
         ENDIF.
       ENDIF.
     ENDLOOP.
