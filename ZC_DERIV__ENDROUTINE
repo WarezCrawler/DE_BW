@@ -319,14 +319,17 @@ CLASS lcl_transform IMPLEMENTATION.
             ENDIF.
 *    end****derive segment
 
-*Is it a DCS profit center?
-            IF l_s_zdecsprct-/bic/zprcatgy IS INITIAL OR
-*If it is a DCS profit center is it also a DCS segment?
-              l_s_zc_segm-/bic/zc_bunit IS INITIAL.
-* Non DCS - use logical profit center created in
-* ZDECSPRCT -> ZDECSPRCT transformation
-               lv_non_dcs_ORG = 1.
-            ENDIF.
+*****XLIND: REMOVED - DECS PrCtr and therefore in MD with ZC_ORG
+*****Generated during MD load ZDECSPRCTR->ZDECSPRCTR
+
+**Is it a DCS profit center?
+*            IF l_s_zdecsprct-/bic/zprcatgy IS INITIAL OR
+**If it is a DCS profit center is it also a DCS segment?
+*              l_s_zc_segm-/bic/zc_bunit IS INITIAL.
+** Non DCS - use logical profit center created in
+** ZDECSPRCT -> ZDECSPRCT transformation
+*               lv_non_dcs_ORG = 1.
+*            ENDIF.
           ENDIF.
 *     Empty profit center
         ELSEIF l_s_zc_segm-/bic/zc_bunit = '02'.
