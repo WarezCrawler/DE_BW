@@ -1,0 +1,259 @@
+*PRODUCTION GO-LIVE EDITION
+
+PROGRAM trans_routine.
+
+
+*---------------------------------------------------------------------*
+*       CLASS routine DEFINITION
+*---------------------------------------------------------------------*
+*
+*---------------------------------------------------------------------*
+CLASS lcl_transform DEFINITION.
+  PUBLIC SECTION.
+
+*  Attributs
+    DATA:
+      p_check_master_data_exist
+            TYPE RSODSOCHECKONLY READ-ONLY,
+*-    Instance for getting request runtime attributs;
+*     Available information: Refer to methods of
+*     interface 'if_rsbk_request_admintab_view'
+      p_r_request
+            TYPE REF TO if_rsbk_request_admintab_view READ-ONLY.
+
+  PRIVATE SECTION.
+
+    TYPE-POOLS: rsd, rstr.
+
+*   Rule specific types
+    TYPES:
+      BEGIN OF _ty_s_SC_1,
+*      InfoObject: ZC_ACNT DCS Account.
+        /BIC/ZC_ACNT           TYPE /BIC/OIZC_ACNT,
+*      InfoObject: ZC_ATYP Account Type.
+        /BIC/ZC_ATYP           TYPE /BIC/OIZC_ATYP,
+*      InfoObject: ZC_ATYP1 Account Group.
+        /BIC/ZC_ATYP1           TYPE /BIC/OIZC_ATYP1,
+*      InfoObject: ZC_ATYP1A Account Subgroup 1.
+        /BIC/ZC_ATYP1A           TYPE /BIC/OIZC_ATYP1A,
+*      InfoObject: ZC_ATYP2A Account Subgroup 2A.
+        /BIC/ZC_ATYP2A           TYPE /BIC/OIZC_ATYP2A,
+*      InfoObject: ZC_ATYP2B Account Subgroup 2B.
+        /BIC/ZC_ATYP2B           TYPE /BIC/OIZC_ATYP2B,
+*      InfoObject: ZC_ATYP3B Account Subgroup 3.
+        /BIC/ZC_ATYP3B           TYPE /BIC/OIZC_ATYP3B,
+*      InfoObject: ZC_ATYP4 Account Subgroup 4.
+        /BIC/ZC_ATYP4           TYPE /BIC/OIZC_ATYP4,
+*      InfoObject: 0RECORD.
+        RECORD           TYPE RSARECORD,
+      END   OF _ty_s_SC_1.
+    TYPES:
+      _ty_t_SC_1        TYPE STANDARD TABLE OF _ty_s_SC_1
+                        WITH NON-UNIQUE DEFAULT KEY.
+
+*$*$ begin of global - insert your declaration only below this line  *-*
+... "insert your code here
+*$*$ end of global - insert your declaration only before this line   *-*
+
+    METHODS
+      start_routine
+        IMPORTING
+          request                  type rsrequest
+          datapackid               type rsdatapid
+          segid                    type rsbk_segid
+        EXPORTING
+          monitor                  type rstr_ty_t_monitors
+        CHANGING
+          SOURCE_PACKAGE              type _ty_t_SC_1
+        RAISING
+          cx_rsrout_abort
+          cx_rsbk_errorcount.
+    METHODS
+      inverse_start_routine
+        IMPORTING
+          i_th_fields_outbound         TYPE rstran_t_field_inv
+          I_R_SELSET_OUTBOUND          TYPE REF TO CL_RSMDS_SET
+          i_is_main_selection          TYPE rs_bool
+          i_r_selset_outbound_complete TYPE REF TO cl_rsmds_set
+          i_r_universe_inbound         TYPE REF TO CL_RSMDS_UNIVERSE
+        CHANGING
+          c_th_fields_inbound          TYPE rstran_t_field_inv
+          c_r_selset_inbound           TYPE REF TO CL_RSMDS_SET
+          c_exact                      TYPE rs_bool.
+ENDCLASS.                    "routine DEFINITION
+
+*$*$ begin of 2nd part global - insert your code only below this line  *
+... "insert your code here
+*$*$ end of 2nd part global - insert your code only before this line   *
+
+*---------------------------------------------------------------------*
+*       CLASS routine IMPLEMENTATION
+*---------------------------------------------------------------------*
+*
+*---------------------------------------------------------------------*
+CLASS lcl_transform IMPLEMENTATION.
+
+*----------------------------------------------------------------------*
+*       Method start_routine
+*----------------------------------------------------------------------*
+*       Calculation of source package via start routine
+*----------------------------------------------------------------------*
+*   <-> source package
+*----------------------------------------------------------------------*
+  METHOD start_routine.
+*=== Segments ===
+
+    FIELD-SYMBOLS:
+      <SOURCE_FIELDS>    TYPE _ty_s_SC_1.
+
+    DATA:
+      MONITOR_REC     TYPE rstmonitor.
+
+*$*$ begin of routine - insert your code only below this line        *-*
+... "insert your code here
+*--  fill table "MONITOR" with values of structure "MONITOR_REC"
+*-   to make monitor entries
+... "to cancel the update process
+*    raise exception type CX_RSROUT_ABORT.
+
+
+DATA: l_t_ZC_ATYP4  TYPE STANDARD TABLE OF /BIC/PZC_ATYP4,
+      l_s_ZC_ATYP4  TYPE /BIC/PZC_ATYP4,
+      l_t_ZC_ATYP3B TYPE STANDARD TABLE OF /BIC/PZC_ATYP3B,
+      l_s_ZC_ATYP3B TYPE /BIC/PZC_ATYP3B,
+      l_t_ZC_ATYP2A TYPE STANDARD TABLE OF /BIC/PZC_ATYP2A,
+      l_s_ZC_ATYP2A TYPE /BIC/PZC_ATYP2A,
+      l_t_ZC_ATYP2B TYPE STANDARD TABLE OF /BIC/PZC_ATYP2B,
+      l_s_ZC_ATYP2B TYPE /BIC/PZC_ATYP2B,
+      l_t_ZC_ATYP1A TYPE STANDARD TABLE OF /BIC/PZC_ATYP1A,
+      l_s_ZC_ATYP1A TYPE /BIC/PZC_ATYP1A,
+      l_t_ZC_ATYP1 TYPE STANDARD TABLE OF /BIC/PZC_ATYP1,
+      l_s_ZC_ATYP1 TYPE /BIC/PZC_ATYP1.
+
+* CFR characteristics derivation for Account
+    SELECT * FROM /BIC/PZC_ATYP4 INTO TABLE l_t_ZC_ATYP4
+       WHERE OBJVERS = 'A'.
+
+
+    SELECT * FROM /BIC/PZC_ATYP3B INTO TABLE l_t_ZC_ATYP3B
+       WHERE OBJVERS = 'A'.
+
+    SELECT * FROM /BIC/PZC_ATYP2A INTO TABLE l_t_ZC_ATYP2A
+       WHERE OBJVERS = 'A'.
+
+    SELECT * FROM /BIC/PZC_ATYP2B INTO TABLE l_t_ZC_ATYP2B
+       WHERE OBJVERS = 'A'.
+
+    SELECT * FROM /BIC/PZC_ATYP1A INTO TABLE l_t_ZC_ATYP1A
+       WHERE OBJVERS = 'A'.
+
+    SELECT * FROM /BIC/PZC_ATYP1 INTO TABLE l_t_ZC_ATYP1
+       WHERE OBJVERS = 'A'.
+
+    LOOP AT SOURCE_PACKAGE ASSIGNING <SOURCE_FIELDS>.
+
+      IF <SOURCE_FIELDS>-/BIC/ZC_ATYP4 <> ''.
+*  Fill reporting hierarchy if Account Subgroup 3 is entered
+        READ TABLE l_t_ZC_ATYP4 INTO l_s_ZC_ATYP4
+          WITH KEY /BIC/ZC_ATYP4 = <SOURCE_FIELDS>-/BIC/ZC_ATYP4.
+
+        IF sy-subrc = 0.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP = l_s_ZC_ATYP4-/BIC/ZC_ATYP.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP1 = l_s_ZC_ATYP4-/BIC/ZC_ATYP1.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP1A = l_s_ZC_ATYP4-/BIC/ZC_ATYP1A.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP2A = l_s_ZC_ATYP4-/BIC/ZC_ATYP2A.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP2B = l_s_ZC_ATYP4-/BIC/ZC_ATYP2B.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP3B = l_s_ZC_ATYP4-/BIC/ZC_ATYP3B.
+        ENDIF.
+      ELSEIF <SOURCE_FIELDS>-/BIC/ZC_ATYP3B <> ''.
+*  Fill reporting hierarchy if Account Subgroup 3 is entered
+        READ TABLE l_t_ZC_ATYP3B INTO l_s_ZC_ATYP3B
+          WITH KEY /BIC/ZC_ATYP3B = <SOURCE_FIELDS>-/BIC/ZC_ATYP3B.
+
+        IF sy-subrc = 0.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP = l_s_ZC_ATYP3B-/BIC/ZC_ATYP.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP1 = l_s_ZC_ATYP3B-/BIC/ZC_ATYP1.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP1A = l_s_ZC_ATYP3B-/BIC/ZC_ATYP1A.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP2A = l_s_ZC_ATYP3B-/BIC/ZC_ATYP2A.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP2B = l_s_ZC_ATYP3B-/BIC/ZC_ATYP2B.
+        ENDIF.
+
+      ELSEIF <SOURCE_FIELDS>-/BIC/ZC_ATYP2A <> ''.
+*       Fill reporting hierarchy if Account Subgroup 2A is entered
+        READ TABLE l_t_ZC_ATYP2A INTO l_s_ZC_ATYP2A
+          WITH KEY /BIC/ZC_ATYP2A = <SOURCE_FIELDS>-/BIC/ZC_ATYP2A.
+
+        IF sy-subrc = 0.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP = l_s_ZC_ATYP2A-/BIC/ZC_ATYP.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP1 = l_s_ZC_ATYP2A-/BIC/ZC_ATYP1.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP1A = l_s_ZC_ATYP2A-/BIC/ZC_ATYP1A.
+        ENDIF.
+
+      ELSEIF <SOURCE_FIELDS>-/BIC/ZC_ATYP2B <> ''.
+*       Fill reporting hierarchy if Account Subgroup 2B is entered
+        READ TABLE l_t_ZC_ATYP2B INTO l_s_ZC_ATYP2B
+          WITH KEY /BIC/ZC_ATYP2B = <SOURCE_FIELDS>-/BIC/ZC_ATYP2B.
+
+        IF sy-subrc = 0.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP = l_s_ZC_ATYP2B-/BIC/ZC_ATYP.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP1 = l_s_ZC_ATYP2B-/BIC/ZC_ATYP1.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP1A = l_s_ZC_ATYP2B-/BIC/ZC_ATYP1A.
+        ENDIF.
+
+      ELSEIF <SOURCE_FIELDS>-/BIC/ZC_ATYP1A <> ''.
+*       Fill reporting hierarchy if Account Subgroup 1 is entered
+        READ TABLE l_t_ZC_ATYP1A INTO l_s_ZC_ATYP1A
+          WITH KEY /BIC/ZC_ATYP1A = <SOURCE_FIELDS>-/BIC/ZC_ATYP1A.
+
+        IF sy-subrc = 0.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP = l_s_ZC_ATYP1A-/BIC/ZC_ATYP.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP1 = l_s_ZC_ATYP1A-/BIC/ZC_ATYP1.
+        ENDIF.
+
+      ELSEIF <SOURCE_FIELDS>-/BIC/ZC_ATYP1 <> ''.
+*       Fill reporting hierarchy if Account Group is entered
+        READ TABLE l_t_ZC_ATYP1 INTO l_s_ZC_ATYP1
+          WITH KEY /BIC/ZC_ATYP1 = <SOURCE_FIELDS>-/BIC/ZC_ATYP1.
+
+        IF sy-subrc = 0.
+          <SOURCE_FIELDS>-/BIC/ZC_ATYP = l_s_ZC_ATYP1-/BIC/ZC_ATYP.
+        ENDIF.
+      ENDIF.
+
+    ENDLOOP.
+
+
+*$*$ end of routine - insert your code only before this line         *-*
+  ENDMETHOD.                    "start_routine
+*----------------------------------------------------------------------*
+*       Inverse method inverse_start_routine
+*----------------------------------------------------------------------*
+*       This subroutine needs to be implemented only for direct access
+*       (for better performance) and for the Report/Report Interface
+*       (drill through).
+*       The inverse routine should transform a projection and
+*       a selection for the target to a projection and a selection
+*       for the source, respectively.
+*       If the implementation remains empty all fields are filled and
+*       all values are selected.
+*----------------------------------------------------------------------*
+*       Customer comment:
+*----------------------------------------------------------------------*
+  METHOD inverse_start_routine.
+
+*   IMPORTING
+*     i_r_selset_outbound          TYPE REF TO cl_rsmds_set
+*     i_th_fields_outbound         TYPE HASHED TABLE
+*     i_r_selset_outbound_complete TYPE REF TO cl_rsmds_set
+*     i_r_universe_inbound         TYPE REF TO cl_rsmds_universe
+*   CHANGING
+*     c_r_selset_inbound           TYPE REF TO cl_rsmds_set
+*     c_th_fields_inbound          TYPE HASHED TABLE
+*     c_exact                      TYPE rs_bool
+
+*$*$ begin of inverse routine - insert your code only below this line*-*
+... "insert your code here
+*$*$ end of inverse routine - insert your code only before this line *-*
+
+  ENDMETHOD.                    "inverse_start_routine
+ENDCLASS.                    "routine IMPLEMENTATION
