@@ -1,0 +1,292 @@
+*PRODUCTION GO-LIVE EDITION
+
+PROGRAM trans_routine.
+
+
+*---------------------------------------------------------------------*
+*       CLASS routine DEFINITION
+*---------------------------------------------------------------------*
+*
+*---------------------------------------------------------------------*
+CLASS lcl_transform DEFINITION.
+  PUBLIC SECTION.
+
+*  Attributs
+    DATA:
+      p_check_master_data_exist
+            TYPE RSODSOCHECKONLY READ-ONLY,
+*-    Instance for getting request runtime attributs;
+*     Available information: Refer to methods of
+*     interface 'if_rsbk_request_admintab_view'
+      p_r_request
+            TYPE REF TO if_rsbk_request_admintab_view READ-ONLY.
+
+  PRIVATE SECTION.
+
+    TYPE-POOLS: rsd, rstr.
+
+*   Rule specific types
+    TYPES:
+      BEGIN OF _ty_s_TG_1,
+*      InfoObject: ZDECSPRCT DECS Profit Center.
+        /BIC/ZDECSPRCT           TYPE /BIC/OIZDECSPRCT,
+*      InfoObject: 0DATETO Valid To.
+        DATETO           TYPE /BI0/OIDATETO,
+*      InfoObject: ZC_ORG DCS Profit Center.
+        /BIC/ZC_ORG           TYPE /BIC/OIZC_ORG,
+*      InfoObject: ZC_SEGM Segment.
+        /BIC/ZC_SEGM           TYPE /BIC/OIZC_SEGM,
+*      InfoObject: ZPRCATGY Profit Center Category.
+        /BIC/ZPRCATGY           TYPE /BIC/OIZPRCATGY,
+*      InfoObject: 0RESP_PERS Person Responsible.
+        RESP_PERS           TYPE /BI0/OIRESP_PERS,
+*      InfoObject: ZC_BUNIT Business Unit.
+        /BIC/ZC_BUNIT           TYPE /BIC/OIZC_BUNIT,
+*      InfoObject: ZC_MDSRC MD Data Source (ECC, BPC).
+        /BIC/ZC_MDSRC           TYPE /BIC/OIZC_MDSRC,
+*      InfoObject: ZGCOMPANY Legal Company.
+        /BIC/ZGCOMPANY           TYPE /BIC/OIZGCOMPANY,
+*      InfoObject: 0CURRENCY Currency key.
+        CURRENCY           TYPE /BI0/OICURRENCY,
+*      InfoObject: ZC_DECSCC DECS Company Code.
+        /BIC/ZC_DECSCC           TYPE /BIC/OIZC_DECSCC,
+*      InfoObject: 0COUNTRY Country key.
+        COUNTRY           TYPE /BI0/OICOUNTRY,
+*      InfoObject: 0RECORD.
+        RECORD           TYPE RSARECORD,
+      END   OF _ty_s_TG_1.
+    TYPES:
+      _ty_t_TG_1        TYPE STANDARD TABLE OF _ty_s_TG_1
+                        WITH NON-UNIQUE DEFAULT KEY.
+
+*$*$ begin of global - insert your declaration only below this line  *-*
+... "insert your code here
+*$*$ end of global - insert your declaration only before this line   *-*
+    METHODS
+      new_record__end_routine
+        IMPORTING
+          source_segid             type rstran_segid
+          source_record            type sytabix
+        EXPORTING
+          record_new               type sytabix.
+
+    METHODS
+      end_routine
+        IMPORTING
+          request                  type rsrequest
+          datapackid               type rsdatapid
+          segid                    type rsbk_segid
+        EXPORTING
+          monitor                  type rstr_ty_t_monitors
+        CHANGING
+          RESULT_PACKAGE              type _ty_t_TG_1
+        RAISING
+          cx_rsrout_abort
+          cx_rsbk_errorcount.
+    METHODS
+      inverse_end_routine
+        IMPORTING
+          i_th_fields_outbound         TYPE rstran_t_field_inv
+          I_R_SELSET_OUTBOUND          TYPE REF TO CL_RSMDS_SET
+          i_is_main_selection          TYPE rs_bool
+          i_r_selset_outbound_complete TYPE REF TO cl_rsmds_set
+          i_r_universe_inbound         TYPE REF TO CL_RSMDS_UNIVERSE
+        CHANGING
+          c_th_fields_inbound          TYPE rstran_t_field_inv
+          c_r_selset_inbound           TYPE REF TO CL_RSMDS_SET
+          c_exact                      TYPE rs_bool.
+ENDCLASS.                    "routine DEFINITION
+
+*$*$ begin of 2nd part global - insert your code only below this line  *
+... "insert your code here
+*$*$ end of 2nd part global - insert your code only before this line   *
+
+*---------------------------------------------------------------------*
+*       CLASS routine IMPLEMENTATION
+*---------------------------------------------------------------------*
+*
+*---------------------------------------------------------------------*
+CLASS lcl_transform IMPLEMENTATION.
+
+*----------------------------------------------------------------------*
+*       Method end_routine
+*----------------------------------------------------------------------*
+*       Calculation of result package via end routine.
+*       Note: Update of target fields depends on rule assignment in
+*       transformation editor. Only fields that have a rule assigned,
+*       are updated to the data target.
+*----------------------------------------------------------------------*
+*   <-> result package
+*----------------------------------------------------------------------*
+  METHOD end_routine.
+*=== Segments ===
+
+    FIELD-SYMBOLS:
+      <RESULT_FIELDS>    TYPE _ty_s_TG_1.
+
+    DATA:
+      MONITOR_REC     TYPE rstmonitor.
+
+*$*$ begin of routine - insert your code only below this line        *-*
+... "insert your code here
+*--  fill table "MONITOR" with values of structure "MONITOR_REC"
+*-   to make monitor entries
+... "to cancel the update process
+*    raise exception type CX_RSROUT_ABORT.
+
+* Create logical profit centers based on company codes and segment
+*
+   TYPES:
+      BEGIN OF it_log_prct,
+        /bic/zdecsprct TYPE /bic/oizdecsprct,
+        /bic/zc_org TYPE /bic/oizc_org,
+        /bic/zc_segm TYPE /bic/oizc_segm,
+        RESP_PERS TYPE /BI0/OIRESP_PERS,
+        /bic/zprcatgy TYPE /bic/oizprcatgy,
+        /bic/zc_mdsrc TYPE /bic/oizc_mdsrc,
+        /bic/zgcompany TYPE /bic/oizgcompany,
+        CURRENCY TYPE /BI0/OICURRENCY,
+        /bic/zc_decscc TYPE /bic/oizc_decscc,
+        COUNTRY TYPE /BI0/OICOUNTRY,
+        RECORD TYPE RSARECORD,
+      END OF it_log_prct.
+
+DATA:
+    it_log_prct TYPE STANDARD TABLE OF it_log_prct,
+    ls_log_prct TYPE it_log_prct,
+    it_result_package TYPE STANDARD TABLE OF _ty_s_TG_1,
+    ls_result_package TYPE _ty_s_TG_1,
+    lv_record_count TYPE I,
+    ld_org TYPE /bic/oizc_org,
+    lv_comp TYPE C LENGTH 4.
+
+FIELD-SYMBOLS:
+    <fs_log_prct> TYPE it_log_prct,
+    <fs_result_package> TYPE _ty_s_TG_1.
+
+* Update ZC_ORG real DCS profit centers if zprcatgy is not initial
+* or create logical profit centers for non DCS PrCtr (zprcatgy = ' ' )
+LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
+  CLEAR: ls_log_prct, ld_org, lv_comp.
+*deriving non DCS entities.
+  IF <RESULT_FIELDS>-/bic/zprcatgy IS INITIAL.
+*only for Profit Centres with Company Code ID present
+    IF <RESULT_FIELDS>-/bic/zgcompany IS INITIAL.
+      CONTINUE.
+    ELSE.
+*removing alpha
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+        EXPORTING
+          INPUT         = <RESULT_FIELDS>-/bic/zgcompany
+       IMPORTING
+         OUTPUT        = lv_comp.
+      IF <RESULT_FIELDS>-/bic/zc_segm IS INITIAL.
+        CONCATENATE 'CC' lv_comp INTO ld_org.
+      ELSE.
+        CONCATENATE 'CC' lv_comp
+        '_' <RESULT_FIELDS>-/bic/zc_segm
+                    INTO ld_org.
+      ENDIF.
+      ls_log_prct-/bic/zdecsprct = ld_org.
+      ls_log_prct-/bic/zc_org = ld_org.
+      ls_log_prct-/bic/zc_segm = <RESULT_FIELDS>-/bic/zc_segm.
+      ls_log_prct-RESP_PERS = <RESULT_FIELDS>-RESP_PERS.
+      ls_log_prct-/bic/zprcatgy = '39'.
+      ls_log_prct-/bic/zc_mdsrc = 'BW'.
+      ls_log_prct-/bic/zgcompany = <RESULT_FIELDS>-/bic/zgcompany.
+  "The currency will be returned from the last member that is processed.
+  "This might be a problem that it cannot be overruled.
+      ls_log_prct-CURRENCY = <RESULT_FIELDS>-CURRENCY.
+      ls_log_prct-/bic/zc_decscc = <RESULT_FIELDS>-/bic/zc_decscc.
+      ls_log_prct-COUNTRY = <RESULT_FIELDS>-COUNTRY.
+      APPEND ls_log_prct TO it_log_prct.
+*Attribute ZC_ORG on DECS profit center will be updated with
+*logical profit center
+      <RESULT_FIELDS>-/bic/zc_org = ld_org.
+    ENDIF.
+  ELSE.
+    <RESULT_FIELDS>-/bic/zc_org = <RESULT_FIELDS>-/bic/zdecsprct.
+  ENDIF.
+ENDLOOP.
+
+DELETE ADJACENT DUPLICATES FROM it_log_prct COMPARING /bic/zdecsprct.
+* Create new logical profit centers only with company code - e.g. CC4000
+it_result_package[] = RESULT_PACKAGE[].
+
+SORT it_result_package BY /bic/zc_decscc.
+DELETE ADJACENT DUPLICATES FROM it_result_package COMPARING
+/bic/zgcompany.
+DELETE it_result_package WHERE /bic/zgcompany = ' '.
+
+LOOP AT it_result_package ASSIGNING <fs_result_package>.
+  CLEAR: ls_log_prct, ld_org, lv_comp.
+  IF <fs_result_package>-/bic/zgcompany IS NOT INITIAL.
+  CALL FUNCTION 'CONVERSION_EXIT_ALPHA_OUTPUT'
+     EXPORTING
+       INPUT = <fs_result_package>-/bic/zgcompany
+    IMPORTING
+      OUTPUT = lv_comp.
+    CONCATENATE 'CC' lv_comp INTO ld_org.
+    ls_log_prct-/bic/zdecsprct = ld_org.
+    ls_log_prct-/bic/zc_org = ld_org.
+    ls_log_prct-/bic/zprcatgy = '39'.
+    ls_log_prct-/bic/zc_mdsrc = 'BW'.
+    ls_log_prct-/bic/zgcompany = <fs_result_package>-/bic/zgcompany.
+"The currency will be returned from the last member that is processed.
+"This might be a problem that it cannot be overruled.
+    ls_log_prct-CURRENCY = <fs_result_package>-CURRENCY.
+    ls_log_prct-/bic/zc_decscc = <fs_result_package>-/bic/zc_decscc.
+    ls_log_prct-COUNTRY = <fs_result_package>-COUNTRY.
+    APPEND ls_log_prct TO it_log_prct.
+  ENDIF.
+ENDLOOP.
+
+DESCRIBE TABLE RESULT_PACKAGE LINES lv_record_count.
+
+LOOP AT it_log_prct ASSIGNING <fs_log_prct>.
+  lv_record_count = lv_record_count + 1.
+  <fs_log_prct>-RECORD = lv_record_count.
+  MOVE-CORRESPONDING <fs_log_prct> TO ls_result_package.
+  APPEND ls_result_package to RESULT_PACKAGE.
+ENDLOOP.
+
+*$*$ end of routine - insert your code only before this line         *-*
+  ENDMETHOD.                    "end_routine
+*----------------------------------------------------------------------*
+*       Inverse method inverse_end_routine
+*----------------------------------------------------------------------*
+*       This subroutine needs to be implemented only for direct access
+*       (for better performance) and for the Report/Report Interface
+*       (drill through).
+*       The inverse routine should transform a projection and
+*       a selection for the target to a projection and a selection
+*       for the source, respectively.
+*       If the implementation remains empty all fields are filled and
+*       all values are selected.
+*----------------------------------------------------------------------*
+*       Customer comment:
+*----------------------------------------------------------------------*
+  METHOD inverse_end_routine.
+
+*   IMPORTING
+*     i_r_selset_outbound          TYPE REF TO cl_rsmds_set
+*     i_th_fields_outbound         TYPE HASHED TABLE
+*     i_r_selset_outbound_complete TYPE REF TO cl_rsmds_set
+*     i_r_universe_inbound         TYPE REF TO cl_rsmds_universe
+*   CHANGING
+*     c_r_selset_inbound           TYPE REF TO cl_rsmds_set
+*     c_th_fields_inbound          TYPE HASHED TABLE
+*     c_exact                      TYPE rs_bool
+
+*$*$ begin of inverse routine - insert your code only below this line*-*
+... "insert your code here
+*$*$ end of inverse routine - insert your code only before this line *-*
+
+  ENDMETHOD.                    "inverse_end_routine
+
+  METHOD new_record__end_routine.
+
+***** IMPLEMENTATION  is only visible in generated program *****
+
+  ENDMETHOD.
+ENDCLASS.                    "routine IMPLEMENTATION
