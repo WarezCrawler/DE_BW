@@ -1,0 +1,281 @@
+*PRODUCTION GO-LIVE EDITION
+
+PROGRAM trans_routine.
+
+
+*---------------------------------------------------------------------*
+*       CLASS routine DEFINITION
+*---------------------------------------------------------------------*
+*
+*---------------------------------------------------------------------*
+CLASS lcl_transform DEFINITION.
+  PUBLIC SECTION.
+
+*  Attributs
+    DATA:
+      p_check_master_data_exist
+            TYPE RSODSOCHECKONLY READ-ONLY,
+*-    Instance for getting request runtime attributs;
+*     Available information: Refer to methods of
+*     interface 'if_rsbk_request_admintab_view'
+      p_r_request
+            TYPE REF TO if_rsbk_request_admintab_view READ-ONLY.
+
+  PRIVATE SECTION.
+
+    TYPE-POOLS: rsd, rstr.
+
+*   Rule specific types
+    TYPES:
+      BEGIN OF _ty_s_SC_1,
+*      InfoObject: ZC_DECSAC DECS Account.
+        /BIC/ZC_DECSAC           TYPE /BIC/OIZC_DECSAC,
+*      InfoObject: 0BAL_FLAG Indicator: G/L Account is Balance Sheet Acc
+*ount.
+        BAL_FLAG           TYPE /BI0/OIBAL_FLAG,
+*      InfoObject: ZG_GLACCE FDM Financial Statement.
+        /BIC/ZG_GLACCE           TYPE /BIC/OIZG_GLACCE,
+*      InfoObject: ZLOCK_IND Lock Indicator (Open/Closed).
+        /BIC/ZLOCK_IND           TYPE /BIC/OIZLOCK_IND,
+*      InfoObject: ZC_PLFLAG PnL Flag Indicator.
+        /BIC/ZC_PLFLAG           TYPE /BIC/OIZC_PLFLAG,
+*      InfoObject: 0RECORD.
+        RECORD           TYPE RSARECORD,
+      END   OF _ty_s_SC_1.
+    TYPES:
+      _ty_t_SC_1        TYPE STANDARD TABLE OF _ty_s_SC_1
+                        WITH NON-UNIQUE DEFAULT KEY.
+
+*$*$ begin of global - insert your declaration only below this line  *-*
+    ... "insert your code here
+
+*$*$ end of global - insert your declaration only before this line   *-*
+
+    METHODS
+      start_routine
+        IMPORTING
+          request                  type rsrequest
+          datapackid               type rsdatapid
+          segid                    type rsbk_segid
+        EXPORTING
+          monitor                  type rstr_ty_t_monitors
+        CHANGING
+          SOURCE_PACKAGE              type _ty_t_SC_1
+        RAISING
+          cx_rsrout_abort
+          cx_rsbk_errorcount.
+    METHODS
+      inverse_start_routine
+        IMPORTING
+          i_th_fields_outbound         TYPE rstran_t_field_inv
+          I_R_SELSET_OUTBOUND          TYPE REF TO CL_RSMDS_SET
+          i_is_main_selection          TYPE rs_bool
+          i_r_selset_outbound_complete TYPE REF TO cl_rsmds_set
+          i_r_universe_inbound         TYPE REF TO CL_RSMDS_UNIVERSE
+        CHANGING
+          c_th_fields_inbound          TYPE rstran_t_field_inv
+          c_r_selset_inbound           TYPE REF TO CL_RSMDS_SET
+          c_exact                      TYPE rs_bool.
+ENDCLASS.                    "routine DEFINITION
+
+*$*$ begin of 2nd part global - insert your code only below this line  *
+... "insert your code here
+
+TABLES: /BIC/APLAN_O3500, /BIC/PZC_COMP, /BIC/AFIN_O1600.
+
+
+*$*$ end of 2nd part global - insert your code only before this line   *
+
+*---------------------------------------------------------------------*
+*       CLASS routine IMPLEMENTATION
+*---------------------------------------------------------------------*
+*
+*---------------------------------------------------------------------*
+CLASS lcl_transform IMPLEMENTATION.
+
+*----------------------------------------------------------------------*
+*       Method start_routine
+*----------------------------------------------------------------------*
+*       Calculation of source package via start routine
+*----------------------------------------------------------------------*
+*   <-> source package
+*----------------------------------------------------------------------*
+  METHOD start_routine.
+*=== Segments ===
+
+    FIELD-SYMBOLS:
+      <SOURCE_FIELDS>    TYPE _ty_s_SC_1.
+
+    DATA:
+      MONITOR_REC     TYPE rstmonitor.
+
+*$*$ begin of routine - insert your code only below this line        *-*
+    ... "insert your code here
+*--  fill table "MONITOR" with values of structure "MONITOR_REC"
+*-   to make monitor entries
+    ... "to cancel the update process
+*    raise exception type CX_RSROUT_ABORT.
+
+*checking DCS companies based on PLAN_O35
+
+    DATA: LT1_COMP TYPE STANDARD TABLE OF /BIC/PZC_COMP,
+          LS_COMP  TYPE /BIC/PZC_COMP.
+
+    FIELD-SYMBOLS <FS_COMP> LIKE /BIC/PZC_COMP.
+
+
+    DATA: BEGIN OF LS_DCS,
+                  /BIC/ZC_COMP TYPE /BIC/OIZC_COMP,
+                  /BIC/ZCOCODE_L TYPE /BIC/OIZCOCODE_L,
+                  /BIC/ZGL_ACC_L TYPE /BIC/OIZGL_ACC_L,
+                  /BIC/ZC_BUNIT  TYPE /BIC/OIZC_BUNIT,
+                END OF LS_DCS.
+
+    DATA: LT_DCS LIKE SORTED TABLE OF LS_DCS WITH NON-UNIQUE KEY
+    /BIC/ZGL_ACC_L,
+    LT1_DCS LIKE SORTED TABLE OF LS_DCS WITH NON-UNIQUE KEY
+    /BIC/ZGL_ACC_L,
+    LT_COMP LIKE STANDARD TABLE OF LS_DCS WITH NON-UNIQUE KEY
+    /BIC/ZGL_ACC_L.
+
+    FIELD-SYMBOLS <FS_DCS> LIKE LS_DCS.
+
+    DATA: BEGIN OF LS_ACCOM,
+      /BIC/ZCOMP_COD  TYPE /BIC/OIZCOMP_COD,
+      /BIC/ZACCOUNT	TYPE /BIC/OIZACCOUNT,
+      /BIC/ZGCOMPANY TYPE	/BIC/OIZGCOMPANY,
+      /BIC/ZC_COMP TYPE	/BIC/OIZC_COMP,
+      /BIC/ZC_BUNIT TYPE  /BIC/OIZC_BUNIT,
+      END OF LS_ACCOM.
+
+    DATA: LT_ACCOM LIKE STANDARD TABLE OF LS_ACCOM.
+
+    FIELD-SYMBOLS: <FS_ACCOM> LIKE LS_ACCOM.
+
+
+    CLEAR: LT_DCS, LT1_DCS, LT_COMP, LT1_COMP.
+
+
+    SELECT A~/BIC/ZCOMP_COD A~/BIC/ZACCOUNT A~/BIC/ZGCOMPANY
+         B~/BIC/ZC_BUNIT
+         INTO CORRESPONDING FIELDS OF TABLE LT_ACCOM
+       FROM  /BIC/AFIN_O1600 AS A INNER JOIN /BIC/PZC_COMP AS B ON
+   A~/BIC/ZGCOMPANY = B~/BIC/ZC_COMP
+      WHERE B~OBJVERS = 'A'
+      AND B~/BIC/ZC_BUNIT = '02'
+      AND A~/BIC/ZCHRT_ACC = 'DONG'
+      AND A~SOURSYSTEM = '02'.
+
+
+
+    LOOP AT SOURCE_PACKAGE ASSIGNING <SOURCE_FIELDS>.
+
+      READ TABLE LT_ACCOM WITH KEY
+      /BIC/ZACCOUNT = <SOURCE_FIELDS>-/BIC/ZC_DECSAC+22(10)
+      ASSIGNING <FS_ACCOM>.
+
+      IF SY-SUBRC  <> 0.
+        DELETE SOURCE_PACKAGE.
+      ENDIF.
+
+    ENDLOOP.
+
+
+
+*
+*deriving only DCS related account based on assignment of
+*Company Code->BU
+*
+*1 - Select companies related to DCS
+*
+*    SELECT /BIC/ZC_COMP OBJVERS /BIC/ZC_BUNIT FROM /BIC/PZC_COMP
+*      INTO CORRESPONDING FIELDS OF TABLE LT1_COMP
+*        WHERE OBJVERS = 'A'
+*      AND /BIC/ZC_BUNIT = '02'.
+*
+*
+*
+*
+*
+*
+*
+*2 - Normalize Company Code
+*
+*    LOOP AT LT1_COMP ASSIGNING <FS_COMP> WHERE OBJVERS = 'A'.
+*      LS_DCS-/BIC/ZCOCODE_L = <FS_COMP>-/BIC/ZC_COMP+2(4).
+*      LS_DCS-/BIC/ZC_BUNIT  = <FS_COMP>-/BIC/ZC_BUNIT.
+*      APPEND LS_DCS TO LT_COMP.
+*    ENDLOOP.
+*
+************************************
+*3 - Select Account for companies from DCS
+*    SELECT /BIC/ZCOCODE_L /BIC/ZGL_ACC_L FROM /BIC/APLAN_O3500
+*      INTO CORRESPONDING FIELDS OF TABLE LT_DCS
+*      FOR ALL ENTRIES IN LT_COMP
+*      WHERE /BIC/ZCOCODE_L = LT_COMP-/BIC/ZCOCODE_L.
+*
+*    DELETE ADJACENT DUPLICATES FROM LT_DCS COMPARING /BIC/ZGL_ACC_L.
+*
+*
+*
+*
+*
+* 4 Normalize and assing account to Company Code
+*    LOOP AT LT_DCS ASSIGNING <FS_DCS>.
+*      LS_DCS-/BIC/ZCOCODE_L = <FS_DCS>-/BIC/ZCOCODE_L.
+*      LS_DCS-/BIC/ZGL_ACC_L = <FS_DCS>-/BIC/ZGL_ACC_L+22(10).
+*      APPEND  LS_DCS TO LT1_DCS.
+*    ENDLOOP.
+*
+*5 check if account is DCS account, if not delete/no update
+*
+*    LOOP AT SOURCE_PACKAGE ASSIGNING <SOURCE_FIELDS>.
+*
+*      READ TABLE LT1_DCS WITH TABLE KEY
+*      /BIC/ZGL_ACC_L = <SOURCE_FIELDS>-/BIC/ZC_DECSAC+22(10)
+*      ASSIGNING <FS_DCS>.
+*
+*      IF SY-SUBRC  <> 0.
+*        DELETE SOURCE_PACKAGE.
+*      ENDIF.
+*
+*    ENDLOOP.
+
+
+
+
+
+*$*$ end of routine - insert your code only before this line         *-*
+  ENDMETHOD.                    "start_routine
+*----------------------------------------------------------------------*
+*       Inverse method inverse_start_routine
+*----------------------------------------------------------------------*
+*       This subroutine needs to be implemented only for direct access
+*       (for better performance) and for the Report/Report Interface
+*       (drill through).
+*       The inverse routine should transform a projection and
+*       a selection for the target to a projection and a selection
+*       for the source, respectively.
+*       If the implementation remains empty all fields are filled and
+*       all values are selected.
+*----------------------------------------------------------------------*
+*       Customer comment:
+*----------------------------------------------------------------------*
+  METHOD inverse_start_routine.
+
+*   IMPORTING
+*     i_r_selset_outbound          TYPE REF TO cl_rsmds_set
+*     i_th_fields_outbound         TYPE HASHED TABLE
+*     i_r_selset_outbound_complete TYPE REF TO cl_rsmds_set
+*     i_r_universe_inbound         TYPE REF TO cl_rsmds_universe
+*   CHANGING
+*     c_r_selset_inbound           TYPE REF TO cl_rsmds_set
+*     c_th_fields_inbound          TYPE HASHED TABLE
+*     c_exact                      TYPE rs_bool
+
+*$*$ begin of inverse routine - insert your code only below this line*-*
+    ... "insert your code here
+*$*$ end of inverse routine - insert your code only before this line *-*
+
+  ENDMETHOD.                    "inverse_start_routine
+ENDCLASS.                    "routine IMPLEMENTATION
