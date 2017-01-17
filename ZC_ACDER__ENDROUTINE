@@ -1,4 +1,4 @@
-*PRODUCTION GO-LIVE EDITION
+
 
 PROGRAM trans_routine.
 
@@ -158,7 +158,11 @@ CLASS lcl_transform IMPLEMENTATION.
          <RESULT_FIELDS>-SOURSYSTEM = '11'.
          l_account = <RESULT_FIELDS>-/bic/zdecskont.
       ELSE.
-         l_account = <RESULT_FIELDS>-/bic/zaccount.
+         IF <RESULT_FIELDS>-/bic/zaccount IS NOT INITIAL.
+             l_account = <RESULT_FIELDS>-/bic/zaccount.
+         ELSE.
+             l_account = <RESULT_FIELDS>-/bic/zdecskont.
+         ENDIF.
       ENDIF.
 
       IF l_account IS NOT INITIAL.
