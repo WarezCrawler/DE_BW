@@ -1,4 +1,4 @@
-*PRODUCTION GO-LIVE EDITION
+
 
 PROGRAM trans_routine.
 
@@ -164,9 +164,12 @@ LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
 **** SOURCESYSTEM = 04 - Actuals
   IF <RESULT_FIELDS>-/BIC/ZC_DSINIT = 'DW_DP1_FISL'.
     IF <RESULT_FIELDS>-FISCPER >= lv_fiscper AND
-       ( <RESULT_FIELDS>-/bic/zcomp_cod = '4000' OR
+       ( <RESULT_FIELDS>-/bic/zcomp_cod = '2000' OR
+         <RESULT_FIELDS>-/bic/zcomp_cod = '3200' OR
+         <RESULT_FIELDS>-/bic/zcomp_cod = '4000' OR
          <RESULT_FIELDS>-/bic/zcomp_cod = '4200' OR
-         <RESULT_FIELDS>-/bic/zcomp_cod = '4500' ).
+         <RESULT_FIELDS>-/bic/zcomp_cod = '4500' OR
+         <RESULT_FIELDS>-/bic/zcomp_cod = '9700' ).
             <RESULT_FIELDS>-/bic/zc_datas = 'DW_DP1_FISL_2'.
     ELSEIF lv_zc_bool IS NOT INITIAL.
 * Profit Center is set to "ignore"
@@ -180,6 +183,7 @@ LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
     IF <RESULT_FIELDS>-FISCPER >= lv_fiscper AND
        ( <RESULT_FIELDS>-/bic/zcomp_cod = '18' OR
          <RESULT_FIELDS>-/bic/zcomp_cod = '11' OR
+         <RESULT_FIELDS>-/bic/zcomp_cod = '24' OR
          <RESULT_FIELDS>-/bic/zcomp_cod = '26' ).
           <RESULT_FIELDS>-/bic/zc_datas = 'DW_P01_FISL_2'.
     ELSEIF lv_zc_bool IS NOT INITIAL.
