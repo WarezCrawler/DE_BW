@@ -1,4 +1,4 @@
-*PRODUCTION GO-LIVE EDITION
+
 
 PROGRAM trans_routine.
 
@@ -34,7 +34,7 @@ CLASS lcl_transform DEFINITION.
         DATETO           TYPE /BI0/OIDATETO,
 *      InfoObject: ZC_ORG DCS Profit Center.
         /BIC/ZC_ORG           TYPE /BIC/OIZC_ORG,
-*      InfoObject: ZC_SEGM Segment.
+*      InfoObject: ZC_SEGM DCS Segment.
         /BIC/ZC_SEGM           TYPE /BIC/OIZC_SEGM,
 *      InfoObject: ZPRCATGY Profit Center Category.
         /BIC/ZPRCATGY           TYPE /BIC/OIZPRCATGY,
