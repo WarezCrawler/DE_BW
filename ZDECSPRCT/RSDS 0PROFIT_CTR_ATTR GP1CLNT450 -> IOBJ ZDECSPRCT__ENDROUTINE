@@ -1,4 +1,4 @@
-*PRODUCTION GO-LIVE EDITION
+
 
 PROGRAM trans_routine.
 
@@ -46,7 +46,7 @@ CLASS lcl_transform DEFINITION.
         /BIC/ZC_SBA0           TYPE /BIC/OIZC_SBA0,
 *      InfoObject: ZC_SUBVP BM Sub Value Pool.
         /BIC/ZC_SUBVP           TYPE /BIC/OIZC_SUBVP,
-*      InfoObject: ZC_SEGM Segment.
+*      InfoObject: ZC_SEGM DCS Segment.
         /BIC/ZC_SEGM           TYPE /BIC/OIZC_SEGM,
 *      InfoObject: ZPRCATGY Profit Center Category.
         /BIC/ZPRCATGY           TYPE /BIC/OIZPRCATGY,
