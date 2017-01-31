@@ -136,20 +136,25 @@ CLASS lcl_transform IMPLEMENTATION.
 
 * Create logical profit centers based on company codes and segment
 *
-   TYPES:
-      BEGIN OF it_log_prct,
-        /bic/zdecsprct TYPE /bic/oizdecsprct,
-        /bic/zc_org TYPE /bic/oizc_org,
-        /bic/zc_segm TYPE /bic/oizc_segm,
-        RESP_PERS TYPE /BI0/OIRESP_PERS,
-        /bic/zprcatgy TYPE /bic/oizprcatgy,
-        /bic/zc_mdsrc TYPE /bic/oizc_mdsrc,
-        /bic/zgcompany TYPE /bic/oizgcompany,
-        CURRENCY TYPE /BI0/OICURRENCY,
-        /bic/zc_decscc TYPE /bic/oizc_decscc,
-        COUNTRY TYPE /BI0/OICOUNTRY,
-        RECORD TYPE RSARECORD,
-      END OF it_log_prct.
+TYPES:
+   BEGIN OF it_log_prct,
+     /bic/zdecsprct TYPE /bic/oizdecsprct,
+     /bic/zc_org TYPE /bic/oizc_org,
+     /bic/zc_segm TYPE /bic/oizc_segm,
+     /bic/zc_bunit TYPE /bic/oizc_bunit,
+     RESP_PERS TYPE /BI0/OIRESP_PERS,
+     /bic/zprcatgy TYPE /bic/oizprcatgy,
+     /bic/zc_mdsrc TYPE /bic/oizc_mdsrc,
+     /bic/zgcompany TYPE /bic/oizgcompany,
+     CURRENCY TYPE /BI0/OICURRENCY,
+     /bic/zc_decscc TYPE /bic/oizc_decscc,
+     COUNTRY TYPE /BI0/OICOUNTRY,
+     RECORD TYPE RSARECORD,
+   END OF it_log_prct,
+
+  BEGIN OF t_zdecsprct,
+      zdecsprct TYPE /bic/oizdecsprct,
+  END OF t_zdecsprct.
 
 DATA:
     it_log_prct TYPE STANDARD TABLE OF it_log_prct,
@@ -158,11 +163,17 @@ DATA:
     ls_result_package TYPE _ty_s_TG_1,
     lv_record_count TYPE I,
     ld_org TYPE /bic/oizc_org,
-    lv_comp TYPE C LENGTH 4.
+    lv_comp TYPE C LENGTH 4,
+    it_zdecsprct TYPE STANDARD TABLE OF t_zdecsprct.
 
 FIELD-SYMBOLS:
     <fs_log_prct> TYPE it_log_prct,
     <fs_result_package> TYPE _ty_s_TG_1.
+
+SELECT /bic/zdecsprct FROM /bic/pzdecsprct INTO TABLE it_zdecsprct
+  WHERE OBJVERS = 'A' AND
+      ( /bic/zc_mdsrc = 'BW' OR
+        /bic/zc_mdsrc = 'BW2' ).
 
 * Update ZC_ORG real DCS profit centers if zprcatgy is not initial
 * or create logical profit centers for non DCS PrCtr (zprcatgy = ' ' )
@@ -187,22 +198,28 @@ LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
         '_' <RESULT_FIELDS>-/bic/zc_segm
                     INTO ld_org.
       ENDIF.
-      ls_log_prct-/bic/zdecsprct = ld_org.
-      ls_log_prct-/bic/zc_org = ld_org.
-      ls_log_prct-/bic/zc_segm = <RESULT_FIELDS>-/bic/zc_segm.
-      ls_log_prct-RESP_PERS = <RESULT_FIELDS>-RESP_PERS.
-      ls_log_prct-/bic/zprcatgy = '39'.
-      ls_log_prct-/bic/zc_mdsrc = 'BW'.
-      ls_log_prct-/bic/zgcompany = <RESULT_FIELDS>-/bic/zgcompany.
+*only new logical PrCt are created - existing are not updated
+      READ TABLE it_zdecsprct TRANSPORTING NO FIELDS
+        WITH KEY zdecsprct = ld_org.
+      IF SY-SUBRC <> 0.
+        ls_log_prct-/bic/zdecsprct = ld_org.
+        ls_log_prct-/bic/zc_org = ld_org.
+        ls_log_prct-/bic/zc_segm = <RESULT_FIELDS>-/bic/zc_segm.
+        ls_log_prct-/bic/zc_bunit = <RESULT_FIELDS>-/bic/zc_bunit.
+        ls_log_prct-RESP_PERS = <RESULT_FIELDS>-RESP_PERS.
+        ls_log_prct-/bic/zprcatgy = '39'.
+        ls_log_prct-/bic/zc_mdsrc = 'BW'.
+        ls_log_prct-/bic/zgcompany = <RESULT_FIELDS>-/bic/zgcompany.
   "The currency will be returned from the last member that is processed.
   "This might be a problem that it cannot be overruled.
-      ls_log_prct-CURRENCY = <RESULT_FIELDS>-CURRENCY.
-      ls_log_prct-/bic/zc_decscc = <RESULT_FIELDS>-/bic/zc_decscc.
-      ls_log_prct-COUNTRY = <RESULT_FIELDS>-COUNTRY.
-      APPEND ls_log_prct TO it_log_prct.
+        ls_log_prct-CURRENCY = <RESULT_FIELDS>-CURRENCY.
+        ls_log_prct-/bic/zc_decscc = <RESULT_FIELDS>-/bic/zc_decscc.
+        ls_log_prct-COUNTRY = <RESULT_FIELDS>-COUNTRY.
+        APPEND ls_log_prct TO it_log_prct.
 *Attribute ZC_ORG on DECS profit center will be updated with
 *logical profit center
-      <RESULT_FIELDS>-/bic/zc_org = ld_org.
+        <RESULT_FIELDS>-/bic/zc_org = ld_org.
+      ENDIF.
     ENDIF.
   ELSE.
     <RESULT_FIELDS>-/bic/zc_org = <RESULT_FIELDS>-/bic/zdecsprct.
