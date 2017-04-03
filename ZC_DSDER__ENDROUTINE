@@ -46,6 +46,8 @@ CLASS lcl_transform DEFINITION.
         /BIC/ZC_DSDER           TYPE /BIC/OIZC_DSDER,
 *      InfoObject: ZC_DATAS Data Source.
         /BIC/ZC_DATAS           TYPE /BIC/OIZC_DATAS,
+*      InfoObject: ZC_DA1 Financial Aspect.
+        /BIC/ZC_DA1           TYPE /BIC/OIZC_DA1,
 *      InfoObject: 0RECORD.
         RECORD           TYPE RSARECORD,
       END   OF _ty_s_TG_1.
@@ -132,7 +134,9 @@ DATA: lt_zc_mappc TYPE STANDARD TABLE OF /bic/pzc_mappc,
       ls_zc_mappc TYPE /bic/pzc_mappc,
       lv_zc_bool TYPE /bic/oizc_bool,
       lv_ds_check TYPE RSCHAVL,
-      lv_fiscper TYPE /BI0/OIFISCPER..
+      lv_fiscper TYPE /BI0/OIFISCPER,
+      l_chavl TYPE rsd_chavl,
+      l_zc_da1 TYPE rsd_chavl.
 
 SELECT * FROM /bic/pzc_mappc INTO TABLE lt_zc_mappc
     WHERE OBJVERS = 'A'.
@@ -151,7 +155,7 @@ LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
     WITH KEY /bic/zc_mappc = <RESULT_FIELDS>-/bic/zprofit_c.
 
     IF SY-SUBRC = 0.
-      lv_zc_bool = ls_zc_mappc-/bic/zc_bool.
+      lv_zc_bool = ls_zc_mappc-/bic/zlock_ind.
     ENDIF.
   ENDIF.
 
@@ -168,8 +172,7 @@ LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
          <RESULT_FIELDS>-/bic/zcomp_cod = '3200' OR
          <RESULT_FIELDS>-/bic/zcomp_cod = '4000' OR
          <RESULT_FIELDS>-/bic/zcomp_cod = '4200' OR
-         <RESULT_FIELDS>-/bic/zcomp_cod = '4500' OR
-         <RESULT_FIELDS>-/bic/zcomp_cod = '9700' ).
+         <RESULT_FIELDS>-/bic/zcomp_cod = '4500' ).
             <RESULT_FIELDS>-/bic/zc_datas = 'DW_DP1_FISL_2'.
     ELSEIF lv_zc_bool IS NOT INITIAL.
 * Profit Center is set to "ignore"
@@ -177,7 +180,6 @@ LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
     ELSE.
       <RESULT_FIELDS>-/BIC/ZC_DATAS = 'DW_DP1_FISL'.
     ENDIF.
-    CONTINUE.
 **** SOURCESYSTEM = 09 - Actuals
   ELSEIF <RESULT_FIELDS>-/BIC/ZC_DSINIT = 'DW_P01_FISL'.
     IF <RESULT_FIELDS>-FISCPER >= lv_fiscper AND
@@ -191,8 +193,7 @@ LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
     ELSE.
       <RESULT_FIELDS>-/bic/zc_datas = 'DW_P01_FISL'.
     ENDIF.
-    CONTINUE.
- ENDIF.
+  ELSE.
 ******************************************************
 * EL/GAS actuals mirroring of data to DECS should be *
 * filtered out after 31-12-2016, to avoid dobbel data*
@@ -200,15 +201,16 @@ LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
 ******************************************************
 
 **** SOURCESYSTEM = 04/09 - Plan (IP)
-  IF lv_zc_bool IS INITIAL.
-    <RESULT_FIELDS>-/bic/zc_datas = <RESULT_FIELDS>-/bic/zc_dsinit.
-  ELSE.
-* Profit Center is set to "ignore"
-    CONCATENATE <RESULT_FIELDS>-/bic/zc_dsinit '_3' INTO
-    <RESULT_FIELDS>-/bic/zc_datas.
+    IF lv_zc_bool IS INITIAL.
+      <RESULT_FIELDS>-/bic/zc_datas = <RESULT_FIELDS>-/bic/zc_dsinit.
+    ELSE.
+*   Profit Center is set to "ignore"
+      CONCATENATE <RESULT_FIELDS>-/bic/zc_dsinit '_3' INTO
+      <RESULT_FIELDS>-/bic/zc_datas.
+    ENDIF.
   ENDIF.
 
-*Integrity Check for zc_datas and ZC_ORG
+*  Integrity Check for zc_datas
   lv_ds_check = <RESULT_FIELDS>-/bic/zc_datas.
 
   CALL FUNCTION 'RSAR_VALUE_INTEGRITY_INFOOBJ'
@@ -223,8 +225,30 @@ LOOP AT RESULT_PACKAGE ASSIGNING <RESULT_FIELDS>.
   IF SY-SUBRC <> 0.
 *Implement suitable error handling here
     CLEAR <RESULT_FIELDS>-/bic/zc_datas.
+  ELSE.
+* Lookup Financial Apsect - ZC_DA1 from attribute value on ZC_DATAS
+    l_chavl = <RESULT_FIELDS>-/bic/zc_datas.
+    CALL FUNCTION 'RSAU_READ_MASTER_DATA'
+      EXPORTING
+        i_iobjnm                = 'ZC_DATAS'
+        i_chavl                 = l_chavl
+        i_attrnm                = 'ZC_DA1'
+      IMPORTING
+        e_attrval               = l_zc_da1
+      EXCEPTIONS
+        read_error              = 1
+        no_such_attribute       = 2
+        wrong_import_parameters = 3
+        chavl_not_found         = 4
+        OTHERS                  = 5.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+        WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      EXIT.
+    ELSE.
+        <RESULT_FIELDS>-/bic/zc_da1 = l_zc_da1.
+    ENDIF.
   ENDIF.
-
 ENDLOOP.
 
 REFRESH lt_zc_mappc.
