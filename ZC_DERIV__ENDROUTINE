@@ -1,4 +1,4 @@
-*PRODUCTION GO-LIVE EDITION
+
 
 PROGRAM trans_routine.
 
@@ -42,7 +42,7 @@ CLASS lcl_transform DEFINITION.
         /BIC/ZSEGMENT           TYPE /BIC/OIZSEGMENT,
 *      InfoObject: ZC_DERIV DCS Deriv: Organisation.
         /BIC/ZC_DERIV           TYPE /BIC/OIZC_DERIV,
-*      InfoObject: ZC_SEGM Segment.
+*      InfoObject: ZC_SEGM DCS Segment.
         /BIC/ZC_SEGM           TYPE /BIC/OIZC_SEGM,
 *      InfoObject: ZDECSPRCT DECS Profit Center.
         /BIC/ZDECSPRCT           TYPE /BIC/OIZDECSPRCT,
